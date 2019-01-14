@@ -1,7 +1,9 @@
 package com.detector.demo;
 
 import android.media.AudioFormat;
+import android.media.AudioManager;
 import android.media.AudioRecord;
+import android.media.AudioTrack;
 import android.media.MediaRecorder;
 import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
@@ -15,10 +17,13 @@ import com.conwin.detector.stream.OnPlayListener;
 import com.conwin.detector.view.ISurfaceView;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 public class MainActivity extends AppCompatActivity {
     private ISurfaceView surfaceView;
@@ -46,6 +51,12 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 stopRecord();
+            }
+        });
+        findViewById(R.id.play_record).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                playRecord();
             }
         });
 
@@ -90,9 +101,18 @@ public class MainActivity extends AppCompatActivity {
     private int bufferSize = 0;//最小缓冲区大小
 
     //採样频率一般有11025HZ（11KHz），22050HZ（22KHz）、44100Hz（44KHz）
-    private int sampleRateInHz = 11025;//采样率
-    private int channelConfig = AudioFormat.CHANNEL_CONFIGURATION_MONO; //单声道
-    private int audioFormat = AudioFormat.ENCODING_PCM_16BIT; //量化位数
+    /**
+     * 采样率
+     */
+    private int sampleRateInHz = 11025;
+    /**
+     * 单声道（影响播放速度的参数）
+     */
+    private int channelConfig = AudioFormat.CHANNEL_CONFIGURATION_MONO;
+    /**
+     * 量化位数
+     */
+    private int audioFormat = AudioFormat.ENCODING_PCM_16BIT;
 
     private void initRecord() {
         //计算最小缓冲区
@@ -159,6 +179,37 @@ public class MainActivity extends AppCompatActivity {
         isRecording = false;
     }
 
+    private AudioTrack audioTrack;
+
+    private void playRecord() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    File file = new File(parent, "audioTest.pcm");
+                    InputStream in = new FileInputStream(file);
+
+                    ByteArrayOutputStream out = new ByteArrayOutputStream(264848);
+                    for (int b; (b = in.read()) != -1; ) {
+                        out.write(b);
+                    }
+
+                    byte[] buffer = out.toByteArray();
+
+                    audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, sampleRateInHz, channelConfig, audioFormat, buffer.length, AudioTrack.MODE_STREAM);
+
+                    Log.i(TAG, "======== ready to play ========");
+
+                    audioTrack.write(buffer, 0, buffer.length);
+                    audioTrack.play();
+
+                    in.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
 
 
 }
