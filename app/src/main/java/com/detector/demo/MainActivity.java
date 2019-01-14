@@ -1,13 +1,24 @@
 package com.detector.demo;
 
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
+import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 
 import com.conwin.detector.entity.Node;
 import com.conwin.detector.sdk.DetSDK;
 import com.conwin.detector.stream.OnPlayListener;
 import com.conwin.detector.view.ISurfaceView;
+
+import java.io.BufferedOutputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity {
     private ISurfaceView surfaceView;
@@ -25,19 +36,25 @@ public class MainActivity extends AppCompatActivity {
                 playVideo();
             }
         });
-        findViewById(R.id.record).setOnClickListener(new View.OnClickListener() {
+        findViewById(R.id.start_record).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                record();
+                startRecord();
+            }
+        });
+        findViewById(R.id.stop_record).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                stopRecord();
             }
         });
 
-
+        initRecord();
     }
 
     private void playVideo() {
         DetSDK.getInstance().init("http://116.204.67.11:17001");
-        DetSDK.getInstance().playBack(surfaceView, "COWN-3B1-UY-4WS", 1, "2019-01-03 16:15:24", "2019-01-03 16:15:34", new OnPlayListener() {
+        DetSDK.getInstance().playBack(surfaceView, "COWN-3B1-UY-4WS", 1, "2019-01-03 16:15:20", "2019-01-03 16:15:38", new OnPlayListener() {
             @Override
             public void onPrepared(int totalCount, int frame) {
                 // 即将播放
@@ -65,8 +82,83 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void record() {
+    private File recordingFile;//储存AudioRecord录下来的文件
+    private boolean isRecording = false; //true表示正在录音
+    private AudioRecord audioRecord = null;
+    private File parent = null;//文件目录
+    private String TAG = "AudioRecord";
+    private int bufferSize = 0;//最小缓冲区大小
+
+    //採样频率一般有11025HZ（11KHz），22050HZ（22KHz）、44100Hz（44KHz）
+    private int sampleRateInHz = 11025;//采样率
+    private int channelConfig = AudioFormat.CHANNEL_CONFIGURATION_MONO; //单声道
+    private int audioFormat = AudioFormat.ENCODING_PCM_16BIT; //量化位数
+
+    private void initRecord() {
+        //计算最小缓冲区
+        bufferSize = AudioRecord.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat);
+
+        //创建AudioRecorder对象
+        audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRateInHz, channelConfig, audioFormat, bufferSize);
+
+        parent = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/DetectorDemo");
+        if (!parent.exists()) {
+            //创建文件夹
+            parent.mkdirs();
+        }
+    }
+
+    private void startRecord() {
+        isRecording = true;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                isRecording = true;
+
+                recordingFile = new File(parent, "audioTest.pcm");
+                if (recordingFile.exists()) {
+                    recordingFile.delete();
+                }
+
+                try {
+                    recordingFile.createNewFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    Log.e(TAG, "创建储存音频文件出错");
+                }
+
+                try {
+                    DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(recordingFile)));
+                    byte[] buffer = new byte[bufferSize];
+
+                    //开始录音
+                    audioRecord.startRecording();
+                    int r = 0;
+                    while (isRecording) {
+                        int bufferReadResult = audioRecord.read(buffer, 0, bufferSize);
+                        for (int i = 0; i < bufferReadResult; i++) {
+                            dos.write(buffer[i]);
+                        }
+                        r++;
+                    }
+                    audioRecord.stop();//停止录音
+
+                    Log.i(TAG, "Recording stop");
+
+                    dos.close();
+                } catch (Throwable t) {
+                    Log.e(TAG, "Recording Failed");
+                }
+            }
+        }).start();
 
     }
+
+    //停止录音
+    private void stopRecord() {
+        isRecording = false;
+    }
+
+
 
 }

@@ -22,13 +22,23 @@
         app:layout_constraintTop_toBottomOf="@+id/surface_view" />
 
     <Button
-        android:id="@+id/record"
+        android:id="@+id/start_record"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#45a128"
+        android:background="#aaa128"
         android:gravity="center"
-        android:text="record"
+        android:text="Start Record"
         android:textColor="#ffffff"
         app:layout_constraintTop_toBottomOf="@+id/play" />
+
+    <Button
+        android:id="@+id/stop_record"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#cc478f"
+        android:gravity="center"
+        android:text="Stop Record"
+        android:textColor="#ffffff"
+        app:layout_constraintTop_toBottomOf="@+id/start_record" />
 
 </android.support.constraint.ConstraintLayout>
