@@ -189,19 +189,29 @@ public class MainActivity extends AppCompatActivity {
                     File file = new File(parent, "audioTest.pcm");
                     InputStream in = new FileInputStream(file);
 
-                    ByteArrayOutputStream out = new ByteArrayOutputStream(264848);
-                    for (int b; (b = in.read()) != -1; ) {
-                        out.write(b);
+                    //static type
+//                    ByteArrayOutputStream out = new ByteArrayOutputStream(264848);
+//                    for (int b; (b = in.read()) != -1; ) {
+//                        out.write(b);
+//                    }
+//
+//                    byte[] buffer = out.toByteArray();
+//
+//                    audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, sampleRateInHz, channelConfig, audioFormat, buffer.length, AudioTrack.MODE_STATIC);
+//
+//                    Log.i(TAG, "======== ready to play ========");
+//
+//                    audioTrack.write(buffer, 0, buffer.length);
+//                    audioTrack.play();
+
+                    //stream type
+                    audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, sampleRateInHz, channelConfig, audioFormat, bufferSize, AudioTrack.MODE_STREAM);
+                    byte[] buf = new byte[1024];
+                    while (in.read(buf) != -1) {
+                        Log.i(TAG, "buf.length " + buf.length);
+                        audioTrack.write(buf, 0, buf.length);
+                        audioTrack.play();
                     }
-
-                    byte[] buffer = out.toByteArray();
-
-                    audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, sampleRateInHz, channelConfig, audioFormat, buffer.length, AudioTrack.MODE_STREAM);
-
-                    Log.i(TAG, "======== ready to play ========");
-
-                    audioTrack.write(buffer, 0, buffer.length);
-                    audioTrack.play();
 
                     in.close();
                 } catch (IOException e) {
