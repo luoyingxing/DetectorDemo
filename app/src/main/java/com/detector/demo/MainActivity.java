@@ -156,9 +156,18 @@ public class MainActivity extends AppCompatActivity {
                     int r = 0;
                     while (isRecording) {
                         int bufferReadResult = audioRecord.read(buffer, 0, bufferSize);
-                        for (int i = 0; i < bufferReadResult; i++) {
-                            dos.write(buffer[i]);
+
+                        //-----pcm  to pcm-----
+//                        for (int i = 0; i < bufferReadResult; i++) {
+//                            dos.write(buffer[i]);
+//                        }
+
+                        //-----pcm  to alaw-----
+                        short[] buf = PCMUtils.pcm2alaw(buffer, bufferReadResult);
+                        for (short aBuf : buf) {
+                            dos.write(aBuf);
                         }
+
                         r++;
                     }
                     audioRecord.stop();//停止录音
@@ -208,9 +217,21 @@ public class MainActivity extends AppCompatActivity {
                     audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, sampleRateInHz, channelConfig, audioFormat, bufferSize, AudioTrack.MODE_STREAM);
                     byte[] buf = new byte[1024];
                     while (in.read(buf) != -1) {
+                        //-----pcm  to alaw-----
+                        short[] shorts = new short[1024];
+                        for (int i =0;i < 1024; i ++){
+                            shorts[i] = buf[i];
+                        }
+
+                        byte[] buff = PCMUtils.alaw2pcm(shorts, 1024);
+
                         Log.i(TAG, "buf.length " + buf.length);
-                        audioTrack.write(buf, 0, buf.length);
+                        audioTrack.write(buff, 0, buff.length);
                         audioTrack.play();
+
+                        //-----pcm  to pcm-----
+//                        audioTrack.write(buf, 0, buf.length);
+//                        audioTrack.play();
                     }
 
                     in.close();
