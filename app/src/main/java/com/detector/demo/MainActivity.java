@@ -306,4 +306,51 @@ public class MainActivity extends AppCompatActivity {
 
         return (byte) ((sign == 0) ? (decoded) : (-decoded));
     }
+
+    private final static short MULAW_MAX = 0x1FFF;
+    private final static short MULAW_BIAS = 33;
+
+    /**
+     * Mu律编码（PCM-->ALaw）
+     *
+     * @param number
+     * @return
+     */
+    byte MuLaw_Encode(short number) {
+        short mask = 0x1000;
+        byte sign = 0;
+        byte position = 12;
+        byte lsb = 0;
+        if (number < 0) {
+            number = (short) -number;
+            sign = (byte) 0x80;
+        }
+        number += MULAW_BIAS;
+        if (number > MULAW_MAX) {
+            number = MULAW_MAX;
+        }
+        for (; ((number & mask) != mask && position >= 5); mask >>= 1, position--) ;
+        lsb = (byte) ((number >> (position - 4)) & 0x0f);
+        return (byte) ~(sign | ((position - 5) << 4) | lsb);
+    }
+
+    /**
+     * Mu律解码（ALaw-->PCM）
+     *
+     * @param number
+     * @return
+     */
+    byte MuLaw_Decode(byte number) {
+        byte sign = 0, position = 0;
+        short decoded = 0;
+        number = (byte) ~number;
+        if ((number & 0x80) != 0) {
+            number &= ~(1 << 7);
+            sign = -1;
+        }
+        position = (byte) (((number & 0xF0) >> 4) + 5);
+        decoded = (short) (((1 << position) | ((number & 0x0F) << (position - 4))
+                | (1 << (position - 5))) - MULAW_BIAS);
+        return (byte) ((sign == 0) ? (decoded) : (-(decoded)));
+    }
 }
