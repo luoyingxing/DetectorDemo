@@ -15,7 +15,19 @@ public class PCMUtils {
         }
     }
 
+    /**
+     * 编码
+     * @param buffer
+     * @param len
+     * @return
+     */
     public static native short[] pcm2alaw(byte[] buffer, int len);
 
-    public static native byte[] alaw2pcm(short[] buffer, int len);
+    /**
+     * 解码
+     * @param buffer
+     * @param len
+     * @return
+     */
+    public static native byte[] alaw2pcm(byte[] buffer, int len);
 }

@@ -198,18 +198,20 @@ Java_com_detector_demo_PCMUtils_pcm2alaw(JNIEnv *env, jobject instance, jbyteArr
 
 
 JNIEXPORT jbyteArray JNICALL
-Java_com_detector_demo_PCMUtils_alaw2pcm(JNIEnv *env, jobject instance, jshortArray array,
+Java_com_detector_demo_PCMUtils_alaw2pcm(JNIEnv *env, jobject instance, jbyteArray array,
                                          jint length) {
-    jshort *js = (*env)->GetShortArrayElements(env, array, 0);
+    jbyte *js = (*env)->GetByteArrayElements(env, array, 0);
 
     jbyteArray *arr = (*env)->NewByteArray(env, length);
     jbyte *b = (*env)->GetByteArrayElements(env, arr, 0);
 
     for (int i = 0; i < length; i++) {
-        b[i] = ALaw_Decode(js[i]);
+        b[i] = (jbyte) ALaw_Decode(js[i]);
     }
 
     (*env)->SetByteArrayRegion(env, arr, 0, length, b);
+
+    (*env)->ReleaseByteArrayElements(env, array, js, 0);
 
     return arr;
 }

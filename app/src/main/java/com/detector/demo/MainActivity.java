@@ -154,6 +154,8 @@ public class MainActivity extends AppCompatActivity {
                     //开始录音
                     audioRecord.startRecording();
                     int r = 0;
+//                    byte[] buff;
+
                     while (isRecording) {
                         int bufferReadResult = audioRecord.read(buffer, 0, bufferSize);
 
@@ -163,10 +165,19 @@ public class MainActivity extends AppCompatActivity {
 //                        }
 
                         //-----pcm  to alaw-----
-                        short[] buf = PCMUtils.pcm2alaw(buffer, bufferReadResult);
-                        for (short aBuf : buf) {
-                            dos.write(aBuf);
+//                        short[] buf = PCMUtils.pcm2alaw(buffer, bufferReadResult);
+//
+//                        for (short aBuf : buf) {
+//                            dos.write(aBuf);
+//                        }
+
+//                        buff = new byte[buffer.length];
+
+                        for (int k = 0; k < buffer.length; k++) {
+                            buffer[k] = ALaw_Encode(buffer[k]);
                         }
+
+                        dos.write(buffer, 0, buffer.length);
 
                         r++;
                     }
@@ -216,14 +227,13 @@ public class MainActivity extends AppCompatActivity {
                     //stream type
                     audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, sampleRateInHz, channelConfig, audioFormat, bufferSize, AudioTrack.MODE_STREAM);
                     byte[] buf = new byte[1024];
+                    byte[] buff = new byte[1024];
                     while (in.read(buf) != -1) {
                         //-----pcm  to alaw-----
-                        short[] shorts = new short[1024];
-                        for (int i =0;i < 1024; i ++){
-                            shorts[i] = buf[i];
+//                        buff = PCMUtils.alaw2pcm(buf, 1024);
+                        for (int k = 0; k < 1024; k++) {
+                            buff[k] = ALaw_Decode(buf[k]);
                         }
-
-                        byte[] buff = PCMUtils.alaw2pcm(shorts, 1024);
 
                         Log.i(TAG, "buf.length " + buf.length);
                         audioTrack.write(buff, 0, buff.length);
@@ -242,5 +252,58 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
+    private final static short ALAW_MAX = 0xFFF;
 
+    /**
+     * A律编码（PCM-->ALaw）
+     *
+     * @param number
+     * @return
+     */
+    byte ALaw_Encode(short number) {
+        short mask = 0x800;
+        byte sign = 0;
+        byte position = 11;
+        byte lsb;
+        if (number < 0) {
+            number = (short) -number;
+            sign = (byte) 0x80;
+        }
+
+        if (number > ALAW_MAX) {
+            number = ALAW_MAX;
+        }
+
+        for (; ((number & mask) != mask && position >= 5); mask >>= 1, position--) ;
+
+        lsb = (byte) ((number >> ((position == 4) ? (1) : (position - 4))) & 0x0f);
+
+        return (byte) ((sign | ((position - 4) << 4) | lsb) ^ 0x55);
+    }
+
+    /**
+     * A律解码（ALaw-->PCM）
+     *
+     * @param number
+     * @return
+     */
+    byte ALaw_Decode(byte number) {
+        byte sign = 0x00;
+        byte position;
+        short decoded;
+        number ^= 0x55;
+        if ((number & 0x80) != 0) {
+            number &= ~(1 << 7);
+            sign = -1;
+        }
+
+        position = (byte) (((number & 0xF0) >> 4) + 4);
+        if (position != 4) {
+            decoded = (short) ((1 << position) | ((number & 0x0F) << (position - 4)) | (1 << (position - 5)));
+        } else {
+            decoded = (short) ((number << 1) | 1);
+        }
+
+        return (byte) ((sign == 0) ? (decoded) : (-decoded));
+    }
 }
