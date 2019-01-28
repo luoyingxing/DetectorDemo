@@ -17,7 +17,6 @@ import com.conwin.detector.stream.OnPlayListener;
 import com.conwin.detector.view.ISurfaceView;
 
 import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -174,7 +173,7 @@ public class MainActivity extends AppCompatActivity {
 //                        buff = new byte[buffer.length];
 
                         for (int k = 0; k < buffer.length; k++) {
-                            buffer[k] = ALaw_Encode(buffer[k]);
+                            buffer[k] = AudioCodec.aLawEncode(buffer[k]);
                         }
 
                         dos.write(buffer, 0, buffer.length);
@@ -232,7 +231,7 @@ public class MainActivity extends AppCompatActivity {
                         //-----pcm  to alaw-----
 //                        buff = PCMUtils.alaw2pcm(buf, 1024);
                         for (int k = 0; k < 1024; k++) {
-                            buff[k] = ALaw_Decode(buf[k]);
+                            buff[k] = AudioCodec.aLawDecode(buf[k]);
                         }
 
                         Log.i(TAG, "buf.length " + buf.length);
@@ -250,107 +249,5 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }).start();
-    }
-
-    private final static short ALAW_MAX = 0xFFF;
-
-    /**
-     * A律编码（PCM-->ALaw）
-     *
-     * @param number
-     * @return
-     */
-    byte ALaw_Encode(short number) {
-        short mask = 0x800;
-        byte sign = 0;
-        byte position = 11;
-        byte lsb;
-        if (number < 0) {
-            number = (short) -number;
-            sign = (byte) 0x80;
-        }
-
-        if (number > ALAW_MAX) {
-            number = ALAW_MAX;
-        }
-
-        for (; ((number & mask) != mask && position >= 5); mask >>= 1, position--) ;
-
-        lsb = (byte) ((number >> ((position == 4) ? (1) : (position - 4))) & 0x0f);
-
-        return (byte) ((sign | ((position - 4) << 4) | lsb) ^ 0x55);
-    }
-
-    /**
-     * A律解码（ALaw-->PCM）
-     *
-     * @param number
-     * @return
-     */
-    byte ALaw_Decode(byte number) {
-        byte sign = 0x00;
-        byte position;
-        short decoded;
-        number ^= 0x55;
-        if ((number & 0x80) != 0) {
-            number &= ~(1 << 7);
-            sign = -1;
-        }
-
-        position = (byte) (((number & 0xF0) >> 4) + 4);
-        if (position != 4) {
-            decoded = (short) ((1 << position) | ((number & 0x0F) << (position - 4)) | (1 << (position - 5)));
-        } else {
-            decoded = (short) ((number << 1) | 1);
-        }
-
-        return (byte) ((sign == 0) ? (decoded) : (-decoded));
-    }
-
-    private final static short MULAW_MAX = 0x1FFF;
-    private final static short MULAW_BIAS = 33;
-
-    /**
-     * Mu律编码（PCM-->ALaw）
-     *
-     * @param number
-     * @return
-     */
-    byte MuLaw_Encode(short number) {
-        short mask = 0x1000;
-        byte sign = 0;
-        byte position = 12;
-        byte lsb = 0;
-        if (number < 0) {
-            number = (short) -number;
-            sign = (byte) 0x80;
-        }
-        number += MULAW_BIAS;
-        if (number > MULAW_MAX) {
-            number = MULAW_MAX;
-        }
-        for (; ((number & mask) != mask && position >= 5); mask >>= 1, position--) ;
-        lsb = (byte) ((number >> (position - 4)) & 0x0f);
-        return (byte) ~(sign | ((position - 5) << 4) | lsb);
-    }
-
-    /**
-     * Mu律解码（ALaw-->PCM）
-     *
-     * @param number
-     * @return
-     */
-    byte MuLaw_Decode(byte number) {
-        byte sign = 0, position = 0;
-        short decoded = 0;
-        number = (byte) ~number;
-        if ((number & 0x80) != 0) {
-            number &= ~(1 << 7);
-            sign = -1;
-        }
-        position = (byte) (((number & 0xF0) >> 4) + 5);
-        decoded = (short) (((1 << position) | ((number & 0x0F) << (position - 4))
-                | (1 << (position - 5))) - MULAW_BIAS);
-        return (byte) ((sign == 0) ? (decoded) : (-(decoded)));
     }
 }
