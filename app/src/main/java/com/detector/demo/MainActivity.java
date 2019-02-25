@@ -230,12 +230,18 @@ public class MainActivity extends AppCompatActivity {
                     while (in.read(buf) != -1) {
                         //-----pcm  to alaw-----
 //                        buff = PCMUtils.alaw2pcm(buf, 1024);
-                        for (int k = 0; k < 1024; k++) {
-                            buff[k] = AudioCodec.aLawDecode(buf[k]);
-                        }
+
+                        //AudioCodec
+//                        for (int k = 0; k < 1024; k++) {
+//                            buff[k] = AudioCodec.aLawDecode(buf[k]);
+//                        }
+
+                        //G711Code
+                        byte[] outbuf = new byte[buf.length * 2];
+                        int encodeSize = G711Code.decode(buf, 0, buf.length, outbuf);
 
                         Log.i(TAG, "buf.length " + buf.length);
-                        audioTrack.write(buff, 0, buff.length);
+                        audioTrack.write(outbuf, 0, outbuf.length);
                         audioTrack.play();
 
                         //-----pcm  to pcm-----

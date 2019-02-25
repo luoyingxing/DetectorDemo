@@ -6,99 +6,84 @@ package com.detector.demo;
  * date: 2019/1/15.
  */
 public class G711Code {
-    private final static int SIGN_BIT = 0x80;
-    private final static int QUANT_MASK = 0xf;
-    private final static int SEG_SHIFT = 4;
-    private final static int SEG_MASK = 0x70;
+    private static short aLawDecompressTable[] = new short[] { -5504, -5248,
+            -6016, -5760, -4480, -4224, -4992, -4736, -7552, -7296, -8064,
+            -7808, -6528, -6272, -7040, -6784, -2752, -2624, -3008, -2880,
+            -2240, -2112, -2496, -2368, -3776, -3648, -4032, -3904, -3264,
+            -3136, -3520, -3392, -22016, -20992, -24064, -23040, -17920,
+            -16896, -19968, -18944, -30208, -29184, -32256, -31232, -26112,
+            -25088, -28160, -27136, -11008, -10496, -12032, -11520, -8960,
+            -8448, -9984, -9472, -15104, -14592, -16128, -15616, -13056,
+            -12544, -14080, -13568, -344, -328, -376, -360, -280, -264, -312,
+            -296, -472, -456, -504, -488, -408, -392, -440, -424, -88, -72,
+            -120, -104, -24, -8, -56, -40, -216, -200, -248, -232, -152, -136,
+            -184, -168, -1376, -1312, -1504, -1440, -1120, -1056, -1248, -1184,
+            -1888, -1824, -2016, -1952, -1632, -1568, -1760, -1696, -688, -656,
+            -752, -720, -560, -528, -624, -592, -944, -912, -1008, -976, -816,
+            -784, -880, -848, 5504, 5248, 6016, 5760, 4480, 4224, 4992, 4736,
+            7552, 7296, 8064, 7808, 6528, 6272, 7040, 6784, 2752, 2624, 3008,
+            2880, 2240, 2112, 2496, 2368, 3776, 3648, 4032, 3904, 3264, 3136,
+            3520, 3392, 22016, 20992, 24064, 23040, 17920, 16896, 19968, 18944,
+            30208, 29184, 32256, 31232, 26112, 25088, 28160, 27136, 11008,
+            10496, 12032, 11520, 8960, 8448, 9984, 9472, 15104, 14592, 16128,
+            15616, 13056, 12544, 14080, 13568, 344, 328, 376, 360, 280, 264,
+            312, 296, 472, 456, 504, 488, 408, 392, 440, 424, 88, 72, 120, 104,
+            24, 8, 56, 40, 216, 200, 248, 232, 152, 136, 184, 168, 1376, 1312,
+            1504, 1440, 1120, 1056, 1248, 1184, 1888, 1824, 2016, 1952, 1632,
+            1568, 1760, 1696, 688, 656, 752, 720, 560, 528, 624, 592, 944, 912,
+            1008, 976, 816, 784, 880, 848 };
 
-    static short[] seg_end = {0xFF, 0x1FF, 0x3FF, 0x7FF, 0xFFF, 0x1FFF, 0x3FFF, 0x7FFF};
+    private final static int cClip = 32635;
+    private static byte aLawCompressTable[] = new byte[] { 1, 1, 2, 2, 3, 3, 3,
+            3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+            5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+            6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+            7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+            7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+            7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7 };
 
-    static short search(short val, short[] table, short size) {
-        for (short i = 0; i < size; i++) {
-            if (val <= table[i]) {
-                return i;
-            }
+    public static int encode(byte[] src, int offset, int len, byte[] res) {
+        int j = offset;
+        int count = len / 2;
+        short sample = 0;
+
+        for (int i = 0; i < count; i++) {
+            sample = (short) (((src[j++] & 0xff) | (src[j++]) << 8));
+            res[i] = linearToALawSample(sample);
         }
-        return size;
+        return count;
     }
 
-    static byte linear2alaw(short pcm_val) {
-        short mask;
-        short seg;
-        char aval;
-        if (pcm_val >= 0) {
-            mask = 0xD5;
+    private static byte linearToALawSample(short sample) {
+        int sign;
+        int exponent;
+        int mantissa;
+        int s;
+
+        sign = ((~sample) >> 8) & 0x80;
+        if (!(sign == 0x80)) {
+            sample = (short) -sample;
+        }
+        if (sample > cClip) {
+            sample = cClip;
+        }
+        if (sample >= 256) {
+            exponent = (int) aLawCompressTable[(sample >> 8) & 0x7F];
+            mantissa = (sample >> (exponent + 3)) & 0x0F;
+            s = (exponent << 4) | mantissa;
         } else {
-            mask = 0x55;
-            pcm_val = (short) (-pcm_val - 1);
-            if (pcm_val < 0) {
-                pcm_val = 32767;
-            }
+            s = sample >> 4;
         }
-
-        /* Convert the scaled magnitude to segment number. */
-        seg = search(pcm_val, seg_end, (short) 8);
-
-        /* Combine the sign, segment, and quantization bits. */
-
-        if (seg >= 8)       /* out of range, return maximum value. */
-            return (byte) (0x7F ^ mask);
-        else {
-            aval = (char) (seg << SEG_SHIFT);
-            if (seg < 2)
-                aval |= (pcm_val >> 4) & QUANT_MASK;
-            else
-                aval |= (pcm_val >> (seg + 3)) & QUANT_MASK;
-            return (byte) (aval ^ mask);
-        }
+        s ^= (sign ^ 0x55);
+        return (byte) s;
     }
 
-
-    static short alaw2linear(byte a_val) {
-        short t;
-        short seg;
-
-        a_val ^= 0x55;
-
-        t = (short) ((a_val & QUANT_MASK) << 4);
-        seg = (short) ((a_val & SEG_MASK) >> SEG_SHIFT);
-        switch (seg) {
-            case 0:
-                t += 8;
-                break;
-            case 1:
-                t += 0x108;
-                break;
-            default:
-                t += 0x108;
-                t <<= seg - 1;
+    public static int decode(byte[] src, int offset, int len, byte[] res) {
+        int j = 0;
+        for (int i = 0; i < len; i++) {
+            short s = aLawDecompressTable[src[i + offset] & 0xff];
+            res[j++] = (byte) s;
+            res[j++] = (byte) (s >> 8);
         }
-        return (a_val & SIGN_BIT) != 0 ? t : (short) -t;
-    }
-
-    /**
-     * pcm 转 G711 a率
-     *
-     * @param pcm
-     * @param code
-     * @param size
-     */
-    public static void G711aEncoder(short[] pcm, byte[] code, int size) {
-        for (int i = 0; i < size; i++) {
-            code[i] = linear2alaw(pcm[i]);
-        }
-    }
-
-    /**
-     * G.711 转 PCM
-     *
-     * @param pcm
-     * @param code
-     * @param size
-     */
-    public static void G711aDecoder(short[] pcm, byte[] code, int size) {
-        for (int i = 0; i < size; i++) {
-            pcm[i] = alaw2linear(code[i]);
-        }
-    }
-}
+        return j;
+}}
