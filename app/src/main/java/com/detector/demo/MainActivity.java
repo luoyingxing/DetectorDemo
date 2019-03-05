@@ -103,7 +103,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * 采样率
      */
-    private int sampleRateInHz = 11025;
+    private int sampleRateInHz = 8000;
     /**
      * 单声道（影响播放速度的参数）
      */
@@ -134,7 +134,7 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
                 isRecording = true;
 
-                recordingFile = new File(parent, "audioTest.pcm");
+                recordingFile = new File(parent, "test.g711a");
                 if (recordingFile.exists()) {
                     recordingFile.delete();
                 }
@@ -148,7 +148,7 @@ public class MainActivity extends AppCompatActivity {
 
                 try {
                     DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(recordingFile)));
-                    byte[] buffer = new byte[bufferSize];
+                    byte[] buffer = new byte[960];
 
                     //开始录音
                     audioRecord.startRecording();
@@ -156,7 +156,7 @@ public class MainActivity extends AppCompatActivity {
 //                    byte[] buff;
 
                     while (isRecording) {
-                        int bufferReadResult = audioRecord.read(buffer, 0, bufferSize);
+                        int bufferReadResult = audioRecord.read(buffer, 0, 960);
 
                         //-----pcm  to pcm-----
 //                        for (int i = 0; i < bufferReadResult; i++) {
@@ -172,11 +172,15 @@ public class MainActivity extends AppCompatActivity {
 
 //                        buff = new byte[buffer.length];
 
-                        for (int k = 0; k < buffer.length; k++) {
-                            buffer[k] = AudioCodec.aLawEncode(buffer[k]);
-                        }
+                        byte[] src = new byte[480];
 
-                        dos.write(buffer, 0, buffer.length);
+                        G711Code.encode(buffer, 0, buffer.length, src);
+
+//                        for (int k = 0; k < buffer.length; k++) {
+//                            buffer[k] = AudioCodec.aLawEncode(buffer[k]);
+//                        }
+
+                        dos.write(src, 0, src.length);
 
                         r++;
                     }
@@ -205,7 +209,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 try {
-                    File file = new File(parent, "audioTest.pcm");
+                    File file = new File(parent, "test.g711a");
                     InputStream in = new FileInputStream(file);
 
                     //static type
@@ -225,7 +229,7 @@ public class MainActivity extends AppCompatActivity {
 
                     //stream type
                     audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, sampleRateInHz, channelConfig, audioFormat, bufferSize, AudioTrack.MODE_STREAM);
-                    byte[] buf = new byte[1024];
+                    byte[] buf = new byte[480];
                     byte[] buff = new byte[1024];
                     while (in.read(buf) != -1) {
                         //-----pcm  to alaw-----
